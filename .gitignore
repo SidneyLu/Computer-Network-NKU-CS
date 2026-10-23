@@ -1,2 +1,26 @@
-Tech/lab1/figure
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.vcxproj.user
 
+# 编译输出。可执行文件在 bin 里，提交实验时单独拷贝，不放进仓库。
+bin/
+obj/
+**/Generated Files/
+
+# 调试符号
+*.pdb
+*.iobj
+*.ipdb
+
+# LaTeX 中间文件。pdf 和 figure 保留。
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.xdv
+_minted-*/
