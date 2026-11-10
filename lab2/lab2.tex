@@ -69,7 +69,7 @@ libpcap 兼容接口 & \texttt{wpcap.dll} & \texttt{pcap\_findalldevs}、\texttt
 
 \inputminted[firstline=7,lastline=22,linenos,firstnumber=7]{cpp}{core/ethernet.cpp}
 
-类型为 \texttt{0x0800} 时，类型字段后第一个字节是 IPv4 首部的第一个字节。它的高 4 位是版本号，低 4 位是首部长度，单位为 4 字节。首部不含可选项时，这一字节是 \texttt{0x45}，也就是版本 4、首部长 20 字节。类型为 \texttt{0x0806} 时，类型字段后第一个字节是 ARP 硬件类型的高字节。以太网的硬件类型是 1，所以这个字节通常是 \texttt{0x00}。
+类型为 \texttt{0x0800} 时，类型字段后第一个字节是 IPv4 首部的第一个字节。它的高 4 位是版本号，低 4 位是首部长度，单位为 4 字节。首部不含可选项时，这一字节是 \texttt{0x45}，也就是版本 4、首部长 20 字节。这一字节是 \texttt{0x46} 时，版本仍是 4，首部长度字段是 6，首部长 24 字节，其中 4 字节是可选项。类型为 \texttt{0x86DD} 时，类型字段后第一个字节是 IPv6 首部的第一个字节，高 4 位是版本号。\texttt{0x60} 表示版本 6，低 4 位是通信量类的高半字节，这里是 0。类型为 \texttt{0x0806} 时，类型字段后第一个字节是 ARP 硬件类型的高字节。以太网的硬件类型是 1，所以这个字节通常是 \texttt{0x00}。
 
 \subsection{源码目录}
 界面和捕获分开。窗口工程只负责下拉框、按钮和列表，Npcap 调用集中在 \texttt{core}。
@@ -107,35 +107,39 @@ lab2/
 工具栏有网卡下拉框、刷新、条数、开始捕获和停止。下方列表的列是序号、长度、目的 MAC、源 MAC、类型和类型后首字节。列表最多保留最近 1000 行，避免长时间捕获时窗口越来越慢。
 
 \section{运行结果}
-在 Intel Wi-Fi 6 AX200 上捕获 12 帧，同时用 \texttt{ping 1.1.1.1} 产生流量。状态行显示“捕获结束，共 12 帧”。达到条数后开始按钮恢复可用，列表不再增长。窗口见图~\ref{fig:capture}。
+在 Intel Wi-Fi 6 AX200 160MHz 上把条数填为 0，捕获一直进行到点击停止。状态行显示“捕获结束，共 6158 帧”。列表只保留最近 1000 行，所以画面里最早的序号是 5159。窗口见图~\ref{fig:capture}。
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth]{figure/capture.png}
-    \caption{在无线网卡上捕获 12 帧。每行都有目的 MAC、源 MAC、类型和类型后首字节。}
+    \includegraphics[width=\textwidth]{figure/capture.png}
+    \caption{在无线网卡上持续捕获到停止，共 6158 帧。画面中同时有 IPv4 和 IPv6。}
     \label{fig:capture}
 \end{figure}
 
-这 12 帧的类型都是 \texttt{0x0800}，类型后的第一个字节都是 \texttt{0x45}。地址只在两台主机之间交替。\texttt{74:D8:3E:04:17:7B} 是本机这块无线网卡的 MAC。\texttt{00:00:5E:00:01:FE} 是 IANA 为 VRRP 保留的虚拟路由器 MAC，这里是无线网关。从本机发出的帧，源地址是网卡 MAC、目的地址是网关；网关发回的帧方向相反。
+画面里能看到两类单播地址。本机这块无线网卡的 MAC 是 \texttt{74:D8:3E:04:17:7B}。网关地址是 \texttt{00:00:5E:00:01:FE}，这是 IANA 为 VRRP 保留的虚拟路由器 MAC。从本机发出的帧，源地址是网卡 MAC、目的地址是网关；网关发回的帧方向相反。序号 5160 就是网关发来的一帧，长度 1514，类型 \texttt{0x0800}，类型后第一个字节 \texttt{0x45}。1514 字节等于 14 字节以太网头加上 1500 字节负载，是去掉帧校验后的以太网最大长度。同一段列表里还有 54、66、78、86、90、109 和 282 字节的帧，每一行保留的是该帧自己的捕获长度。
+
+类型字段与协议的对应关系在这批帧里都能对上。\texttt{0x0800} 的帧，类型后第一个字节多数是 \texttt{0x45}，版本 4、首部长 20 字节。序号 5167 这一字节是 \texttt{0x46}，版本仍是 4，首部长度字段是 6，首部长 24 字节，多出的 4 字节是可选项。\texttt{0x86DD} 的帧，类型后第一个字节都是 \texttt{0x60}，版本 6，通信量类的高半字节为 0。
+
+序号 5167 和 5168 的源地址都是 \texttt{BA:43:C1:4C:A4:A3}。这个地址的首字节是 \texttt{0xBA}，本地管理位为 1。5167 的目的地址是 \texttt{01:00:5E:00:00:16}。IPv4 组播的以太网目的地址由 \texttt{01:00:5E} 和组播地址的低 23 位组成。\texttt{224.0.0.22} 的低 23 位是 \texttt{00:00:16}，IGMP 把报文发往这个地址。5168 的目的地址是 \texttt{33:33:00:00:00:16}。IPv6 组播的以太网目的地址由 \texttt{33:33} 和组播地址的最后 32 位组成。\texttt{ff02::16} 的最后 32 位是 \texttt{00:00:00:16}，MLD 把报文发往这个地址。这两帧一条是 IPv4、一条是 IPv6，类型后第一个字节分别是 \texttt{0x46} 和 \texttt{0x60}。
 
 \begin{table}[htbp]
 \centering
-\caption{其中四帧}
+\caption{画面中的四帧}
 \label{tab:sample}
+\small
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{llllll}
 \toprule
 序号 & 长度 & 目的 MAC & 源 MAC & 类型 & 类型后首字节 \\
 \midrule
-1 & 708 & \texttt{74:D8:3E:04:17:7B} & \texttt{00:00:5E:00:01:FE} & \texttt{0x0800} & \texttt{0x45} \\
-2 & 66 & \texttt{00:00:5E:00:01:FE} & \texttt{74:D8:3E:04:17:7B} & \texttt{0x0800} & \texttt{0x45} \\
-8 & 54 & \texttt{00:00:5E:00:01:FE} & \texttt{74:D8:3E:04:17:7B} & \texttt{0x0800} & \texttt{0x45} \\
-12 & 98 & \texttt{00:00:5E:00:01:FE} & \texttt{74:D8:3E:04:17:7B} & \texttt{0x0800} & \texttt{0x45} \\
+5159 & 86 & \texttt{00:00:5E:00:01:FE} & \texttt{74:D8:3E:04:17:7B} & \texttt{0x86DD} & \texttt{0x60} \\
+5160 & 1514 & \texttt{74:D8:3E:04:17:7B} & \texttt{00:00:5E:00:01:FE} & \texttt{0x0800} & \texttt{0x45} \\
+5167 & 54 & \texttt{01:00:5E:00:00:16} & \texttt{BA:43:C1:4C:A4:A3} & \texttt{0x0800} & \texttt{0x46} \\
+5168 & 90 & \texttt{33:33:00:00:00:16} & \texttt{BA:43:C1:4C:A4:A3} & \texttt{0x86DD} & \texttt{0x60} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\texttt{0x45} 与 IPv4 首部的布局一致：版本号 4，首部长度 5。长度一列从 54 到 708 都有，说明列表显示的是原始帧长，而不是把不同的包裁成一样长。这次捕获没有遇到 ARP。若类型为 \texttt{0x0806}，偏移 14 是硬件类型的高字节，以太网对应的值是 \texttt{0x00}。
-
 \section{结论}
-程序通过 Npcap 的 \texttt{wpcap.dll} 枚举网卡、打开以太网设备，并在独立线程里读取帧。窗口按固定偏移显示目的 MAC、源 MAC、类型字段和类型字段之后的第一个字节，不把数据包写到硬盘。在无线网卡上捕获的 12 帧都是发往网关或从网关回来的 IPv4 帧，类型为 \texttt{0x0800}，其后第一个字节为 \texttt{0x45}。
+程序通过 Npcap 的 \texttt{wpcap.dll} 枚举网卡、打开以太网设备，并在独立线程里读取帧。窗口按固定偏移显示目的 MAC、源 MAC、类型字段和类型字段之后的第一个字节，不把数据包写到硬盘。在 Intel Wi-Fi 6 AX200 上持续捕获到停止时，状态行显示共 6158 帧。画面中有本机与网关之间的单播，也有 IPv4 和 IPv6 组播。类型 \texttt{0x0800} 后第一个字节是 \texttt{0x45} 或 \texttt{0x46}，类型 \texttt{0x86DD} 后第一个字节是 \texttt{0x60}。
 \end{document}
